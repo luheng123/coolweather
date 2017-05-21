@@ -31,11 +31,19 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fitsSystemWindows="true"
+                    android:gravity="end"
                     android:orientation="vertical">
 
                     <include layout="@layout/title" />
 
                     <include layout="@layout/now" />
+
+                    <Button
+                        android:id="@+id/button_set_update_frequency"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"
+                        android:layout_marginRight="15dp"
+                        android:background="@drawable/settings" />
 
                     <include layout="@layout/forecast" />
 

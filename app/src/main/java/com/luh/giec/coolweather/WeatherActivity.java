@@ -1,5 +1,6 @@
 package com.luh.giec.coolweather;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -8,8 +9,10 @@ import android.preference.PreferenceManager;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -49,6 +52,8 @@ public class WeatherActivity extends AppCompatActivity {
     private TextView carWashText;
     private TextView sportText;
     private ImageView bingPicImg;
+    private int hh;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +66,8 @@ public class WeatherActivity extends AppCompatActivity {
         }
         setContentView(R.layout.activity_weather);
         //初始化各控件
+        Button updateFrequencyBt = (Button) findViewById(R.id.button_set_update_frequency);
+
         drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         Button navButton = (Button) findViewById(R.id.nav_button);
 
@@ -81,9 +88,10 @@ public class WeatherActivity extends AppCompatActivity {
         sportText = (TextView) findViewById(R.id.sport_text);
 
         //preference
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String weatherString = prefs.getString("weather", null);
-        String bingPic = prefs.getString("bing_pic", null);
+        final String bingPic = prefs.getString("bing_pic", null);
+
         if (bingPic != null) {
             Glide.with(this).load(bingPic).into(bingPicImg);
         } else {
@@ -93,8 +101,11 @@ public class WeatherActivity extends AppCompatActivity {
         if (weatherString != null) {
             //有缓存时直接解析天气数据
             Weather weather = Utility.handleWeatherResponse(weatherString);
-            mWeatherId = weather.basic.weatherId;
-            showWeatherInfo(weather);
+            if (weather != null) {
+                mWeatherId = weather.basic.weatherId;
+
+                showWeatherInfo(weather);
+            }
         } else {
             //无缓存时去服务器查询天气
             mWeatherId = getIntent().getStringExtra("weather_id");
@@ -112,6 +123,34 @@ public class WeatherActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
+
+        updateFrequencyBt.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int select = 2;
+                int mhour = prefs.getInt("hour", 8);
+                switch (mhour) {
+                    case 2:
+                        select = 0;
+                        break;
+                    case 4:
+                        select = 1;
+                        break;
+                    case 8:
+                        select = 2;
+                        break;
+                    case 12:
+                        select = 3;
+                        break;
+                    case 24:
+                        select = 4;
+                        break;
+                    default:
+                        break;
+                }
+                showUpdateDailog(select);
             }
         });
     }
@@ -187,6 +226,61 @@ public class WeatherActivity extends AppCompatActivity {
         });
     }
 
+
+    /**
+     * 展示自动跟新选项dailog
+     */
+    private void showUpdateDailog(int hour) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(WeatherActivity.this);
+
+        builder.setTitle("请设置自动更新频率");
+        final String[] hourList = {"2小时", "4小时", "8小时（推荐）", "12小时", "24小时"};
+
+        builder.setSingleChoiceItems(hourList, hour, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+                switch (which) {
+                    case 0:
+                        hh = 2;
+                        break;
+                    case 1:
+                        hh = 4;
+                        break;
+                    case 2:
+                        hh = 8;
+                        break;
+                    case 3:
+                        hh = 12;
+                        break;
+                    case 4:
+                        hh = 24;
+                        break;
+                    default:
+                        break;
+                }
+
+            }
+        });
+        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+                editor.putInt("hour", hh);
+                editor.apply();
+                Intent intent = new Intent(WeatherActivity.this, AutoUpdateService.class);
+                startService(intent);
+            }
+        });
+        builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+
+            }
+        });
+        builder.show();
+    }
+
     /**
      * 处理并展示Weather实体类中的数据
      */
@@ -225,6 +319,7 @@ public class WeatherActivity extends AppCompatActivity {
             carWashText.setText(carWash);
             sportText.setText(sport);
             weatherLayout.setVisibility(View.VISIBLE);
+
 
             Intent intent = new Intent(this, AutoUpdateService.class);
             startService(intent);
